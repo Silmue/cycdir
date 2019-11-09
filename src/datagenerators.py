@@ -145,7 +145,7 @@ def load_example_by_name(vol_name, seg_name, np_var='vol_data'):
     return tuple(return_vals)
 
 
-def load_volfile(datafile, np_var='vol_data'):
+def load_volfile(datafile, np_var='vol'):
     """
     load volume file
     formats: nii, nii.gz, mgz, npz
@@ -165,7 +165,7 @@ def load_volfile(datafile, np_var='vol_data'):
         
     else: # npz
         if np_var is None:
-            np_var = 'vol_data'
+            np_var = 'vol'
         X = np.load(datafile)[np_var]
 
     return X

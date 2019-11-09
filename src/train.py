@@ -150,11 +150,11 @@ if __name__ == "__main__":
     parser = ArgumentParser()
 
     parser.add_argument("--data_dir", type=str,
-                        help="data folder", default='../../../dataset/mri_ct/CT+_npz/train')
+                        help="data folder", default='../../../dataset/mri_ct/pre_reg/train')
 
     parser.add_argument("--atlas_file", type=str,
-                        dest="atlas_file", default='../../../dataset/mri_ct/CT+_npz/atlas_norm.npz',
-                        help="gpu id number")
+                        dest="atlas_file", default='../../../dataset/mri_ct/pre_reg/test/244.npz',
+                        help="atlas file path")
     parser.add_argument("--model", type=str, dest="model",
                         choices=['vm1', 'vm2', 'vm2double'], default='vm1',
                         help="Voxelmorph-1 or 2")
