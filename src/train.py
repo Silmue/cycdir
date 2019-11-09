@@ -16,14 +16,44 @@ from keras.backend.tensorflow_backend import set_session
 from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint
 from keras.utils import multi_gpu_model 
+import keras.callbacks.Callback
 
 # project imports
 import datagenerators
 import networks
 import losses
+import SimpleITK as sitk
 
 sys.path.append('../ext/neuron')
+sys.path.append('../ext/medipy-lib')
 import neuron.callbacks as nrn_gen
+from medipy.metrics import dice
+
+
+
+class ValidationCbk(Callback):
+    def __init__(self, fix_vol, fix_seg, mov_vol, mov_seg):
+        self.fix_vol = fix_vol
+        self.fix_seg = fix_seg
+        self.mov_vol = mov_vol
+        self.mov_seg = mov_seg
+        self.trf = networks.nn_trf(fix_vol.shape[1:-1], indexing='ij')
+
+    def on_epoch_end(self, epoch, logs=None):
+        pred = self.model.predict([self.mov_vol, self.fix_vol])
+        warp_seg = self.trf.predict([self.mov_seg, pred[1]])[0, ..., 0]
+        warp_vol = self.trf.predict([self.mov_vol, pred[1]])[0, ..., 0] * 4000
+        if (epoch+1)%20==0:
+            w_seg = sitk.GetImageFromArray(warp_seg)
+            w_vol = sitk.GetImageFromArray(warp_vol)
+            sitk.WriteImage(w_seg, '../out/test_seg.nrrd')
+            sitk.WriteImage(w_vol, '../out/test_vol.nrrd')
+
+        vals, _ = dice(warp_seg, self.fix_seg, labels=[1], nargout=2)
+        dice_mean = np.mean(vals)
+        dice_std = np.std(vals)
+        print('Dice mean over structures: {:.2f} ({:.2f})'.format(dice_mean, dice_std))
+
 
 
 def train(data_dir,
@@ -57,8 +87,10 @@ def train(data_dir,
 
     # load atlas from provided files. The atlas we used is 160x192x224.
     atlas_vol = np.load(atlas_file)['vol']
+    atlas_seg = np.load(atlas_file)['seg']
     n_s = atlas_vol.shape[0]//2
-    atlas_vol = atlas_vol[np.newaxis, n_s-24:n_s+24,... ,np.newaxis] 
+    atlas_vol = atlas_vol[np.newaxis, n_s-24:n_s+24,... ,np.newaxis]
+    atlas_seg = atlas_seg[np.newaxis, n_s - 24:n_s + 24, ..., np.newaxis]
     vol_size = atlas_vol.shape[1:-1] 
     # prepare data files
     # for the CVPR and MICCAI papers, we have data arranged in train/validate/test folders
@@ -67,6 +99,13 @@ def train(data_dir,
     train_vol_names = glob.glob(os.path.join(data_dir, '*.npz'))
     random.shuffle(train_vol_names)  # shuffle volume list
     assert len(train_vol_names) > 0, "Could not find any training data"
+
+    val_file = train_vol_names[0]
+    val_vol = np.load(val_file)['vol']
+    val_seg = np.load(val_file)['seg']
+    n_s = val_vol.shape[0]//2
+    val_vol = val_vol[np.newaxis, n_s-24:n_s+24,... ,np.newaxis]
+    val_seg = val_seg[np.newaxis, n_s - 24:n_s + 24, ..., np.newaxis]
 
     # UNET filters for voxelmorph-1 and voxelmorph-2,
     # these are architectures presented in CVPR 2018
@@ -116,8 +155,8 @@ def train(data_dir,
         'Got batch_size %d, %d gpus' % (batch_size, nb_gpus)
 
     train_example_gen = datagenerators.example_gen(train_vol_names, batch_size=batch_size)
-    atlas_vol_bs = np.repeat(atlas_vol, batch_size, axis=0)
-    cvpr2018_gen = datagenerators.My_gen_v2(train_example_gen, atlas_vol_bs, batch_size=batch_size)
+    # atlas_vol_bs = np.repeat(atlas_vol, batch_size, axis=0)
+    cvpr2018_gen = datagenerators.cvpr2018_gen_s2s(train_example_gen,  batch_size=batch_size)
 
     # prepare callbacks
     save_file_name = os.path.join(model_dir, '{epoch:02d}.h5')
@@ -130,9 +169,9 @@ def train(data_dir,
             mg_model = multi_gpu_model(model, gpus=nb_gpus)
         # single-gpu
         else:
-            save_callback = ModelCheckpoint(save_file_name)
+            save_callback = ModelCheckpoint(save_file_name, period=5)
             mg_model = model
-
+        vcbk = ValidationCbk(atlas_vol, atlas_seg, val_vol, val_seg)
         # compile
         mg_model.compile(optimizer=Adam(lr=lr), 
                          loss=[data_loss, losses.Grad('l2').loss],
@@ -142,7 +181,7 @@ def train(data_dir,
         mg_model.fit_generator(cvpr2018_gen, 
                                initial_epoch=initial_epoch,
                                epochs=nb_epochs,
-                               callbacks=[save_callback],
+                               callbacks=[save_callback, vcbk],
                                steps_per_epoch=steps_per_epoch,
                                verbose=1)
 

@@ -29,15 +29,6 @@ def My_gen(gen, atlas_vol_bs, batch_size=1):
         yield ([X, atlas_vol_bs], [atlas_vol_bs, zeros])
 
 
-def My_gen_v2(gen, atlas_vol_bs, batch_size=1):
-    """ generator used for cvpr 2018 model """
-
-    volshape = atlas_vol_bs.shape[1:-1]
-    zeros = np.zeros((batch_size, *volshape, len(volshape)))
-    while True:
-        X = next(gen)[0]
-        Y = next(gen)[0]
-        yield ([X, Y], [Y, zeros])
 
 def cvpr2018_gen_s2s(gen, batch_size=1):
     """ generator used for cvpr 2018 model for subject 2 subject registration """
@@ -79,7 +70,7 @@ def miccai2018_gen_s2s(gen, batch_size=1, bidir=False):
             yield ([X, Y], [Y, zeros])
 
 
-def example_gen(vol_names, batch_size=1, return_segs=False, seg_dir=None, np_var='vol_data'):
+def example_gen(vol_names, batch_size=1, return_segs=False, seg_dir=None, np_var='vol'):
     """
     generate examples
 
