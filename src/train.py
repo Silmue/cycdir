@@ -16,7 +16,7 @@ from keras.backend.tensorflow_backend import set_session
 from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint
 from keras.utils import multi_gpu_model 
-import keras.callbacks.Callback
+from keras.callbacks import Callback
 
 # project imports
 import datagenerators
@@ -49,7 +49,7 @@ class ValidationCbk(Callback):
             sitk.WriteImage(w_seg, '../out/test_seg.nrrd')
             sitk.WriteImage(w_vol, '../out/test_vol.nrrd')
 
-        vals, _ = dice(warp_seg, self.fix_seg, labels=[1], nargout=2)
+        vals, _ = dice(warp_seg, self.fix_seg[0,...,0], labels=[1], nargout=2)
         dice_mean = np.mean(vals)
         dice_std = np.std(vals)
         print('Dice mean over structures: {:.2f} ({:.2f})'.format(dice_mean, dice_std))
@@ -189,10 +189,10 @@ if __name__ == "__main__":
     parser = ArgumentParser()
 
     parser.add_argument("--data_dir", type=str,
-                        help="data folder", default='../../../dataset/mri_ct/pre_reg/train')
+                        help="data folder", default='../../../../dataset/mri_ct/pre_reg/train')
 
     parser.add_argument("--atlas_file", type=str,
-                        dest="atlas_file", default='../../../dataset/mri_ct/pre_reg/test/244.npz',
+                        dest="atlas_file", default='../../../../dataset/mri_ct/pre_reg/test/244.npz',
                         help="atlas file path")
     parser.add_argument("--model", type=str, dest="model",
                         choices=['vm1', 'vm2', 'vm2double'], default='vm1',
