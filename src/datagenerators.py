@@ -91,8 +91,7 @@ def example_gen(vol_names, batch_size=1, return_segs=False, seg_dir=None, np_var
         X_data = []
         for idx in idxes:
             X = load_volfile(vol_names[idx], np_var=np_var)
-            n_s = X.shape[0]//2
-            X = X[np.newaxis, n_s-24:n_s+24 ,..., np.newaxis]
+            X = X[np.newaxis,..., np.newaxis]
             X_data.append(X)
 
         if batch_size > 1:

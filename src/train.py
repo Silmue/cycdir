@@ -38,16 +38,20 @@ class ValidationCbk(Callback):
         self.mov_vol = mov_vol
         self.mov_seg = mov_seg
         self.trf = networks.nn_trf(fix_vol.shape[1:-1], indexing='ij')
+        fix = sitk.GetImageFromArray(fix_vol[0,...,0])
+        seg = sitk.GetImageFromArray(fix_seg[0,...,0])
+        sitk.WriteImage(fix, '../out/atlas_vol.nrrd')
+        sitk.WriteImage(seg, '../out/atlas_seg.nrrd')	
 
     def on_epoch_end(self, epoch, logs=None):
         pred = self.model.predict([self.mov_vol, self.fix_vol])
         warp_seg = self.trf.predict([self.mov_seg, pred[1]])[0, ..., 0]
-        warp_vol = self.trf.predict([self.mov_vol, pred[1]])[0, ..., 0] * 4000
-        if (epoch+1)%20==0:
+        warp_vol = self.trf.predict([self.mov_vol, pred[1]])[0, ..., 0]
+        if (epoch+1)%50==0:
             w_seg = sitk.GetImageFromArray(warp_seg)
             w_vol = sitk.GetImageFromArray(warp_vol)
-            sitk.WriteImage(w_seg, '../out/test_seg.nrrd')
-            sitk.WriteImage(w_vol, '../out/test_vol.nrrd')
+            sitk.WriteImage(w_seg, '../out/test_seg_{}.nrrd'.format(epoch))
+            sitk.WriteImage(w_vol, '../out/test_vol_{}.nrrd'.format(epoch))
 
         vals, _ = dice(warp_seg, self.fix_seg[0,...,0], labels=[1], nargout=2)
         dice_mean = np.mean(vals)
@@ -88,9 +92,8 @@ def train(data_dir,
     # load atlas from provided files. The atlas we used is 160x192x224.
     atlas_vol = np.load(atlas_file)['vol']
     atlas_seg = np.load(atlas_file)['seg']
-    n_s = atlas_vol.shape[0]//2
-    atlas_vol = atlas_vol[np.newaxis, n_s-24:n_s+24,... ,np.newaxis]
-    atlas_seg = atlas_seg[np.newaxis, n_s - 24:n_s + 24, ..., np.newaxis]
+    atlas_vol = atlas_vol[np.newaxis, ... ,np.newaxis]
+    atlas_seg = atlas_seg[np.newaxis, ..., np.newaxis]
     vol_size = atlas_vol.shape[1:-1] 
     # prepare data files
     # for the CVPR and MICCAI papers, we have data arranged in train/validate/test folders
@@ -103,9 +106,8 @@ def train(data_dir,
     val_file = train_vol_names[0]
     val_vol = np.load(val_file)['vol']
     val_seg = np.load(val_file)['seg']
-    n_s = val_vol.shape[0]//2
-    val_vol = val_vol[np.newaxis, n_s-24:n_s+24,... ,np.newaxis]
-    val_seg = val_seg[np.newaxis, n_s - 24:n_s + 24, ..., np.newaxis]
+    val_vol = val_vol[np.newaxis, ... ,np.newaxis]
+    val_seg = val_seg[np.newaxis, ..., np.newaxis]
 
     # UNET filters for voxelmorph-1 and voxelmorph-2,
     # these are architectures presented in CVPR 2018
