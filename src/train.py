@@ -40,6 +40,8 @@ class ValidationCbk(Callback):
         self.trf = networks.nn_trf(fix_vol.shape[1:-1], indexing='ij')
         fix = sitk.GetImageFromArray(fix_vol[0,...,0])
         seg = sitk.GetImageFromArray(fix_seg[0,...,0])
+        if not os.path.exists('../out'):
+            os.mkdir('../out')
         sitk.WriteImage(fix, '../out/atlas_vol.nrrd')
         sitk.WriteImage(seg, '../out/atlas_seg.nrrd')	
 
@@ -191,10 +193,10 @@ if __name__ == "__main__":
     parser = ArgumentParser()
 
     parser.add_argument("--data_dir", type=str,
-                        help="data folder", default='../../../../dataset/mri_ct/pre_reg/train')
+                        help="data folder", default='/workspace/dataset/mri_ct/pre_reg/train')
 
     parser.add_argument("--atlas_file", type=str,
-                        dest="atlas_file", default='../../../../dataset/mri_ct/pre_reg/test/244.npz',
+                        dest="atlas_file", default='/workspace/dataset/mri_ct/pre_reg/test/775.npz',
                         help="atlas file path")
     parser.add_argument("--model", type=str, dest="model",
                         choices=['vm1', 'vm2', 'vm2double'], default='vm1',
